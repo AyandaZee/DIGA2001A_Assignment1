@@ -2,48 +2,41 @@ using UnityEngine;
 
 public class BallKick : MonoBehaviour
 {
-    private Vector3 initialPosition;
     private Rigidbody rb;
+    public float kickForce = 35f;
 
-    private void Start()
+    void Start()
     {
         rb = GetComponent<Rigidbody>();
-        initialPosition = transform.position; // Save starting location
     }
 
-    private void Update()
+    void Update()
     {
-        // Reset if the ball falls off the pitch (underground or past bounds)
-        if (transform.position.y < -1f || Mathf.Abs(transform.position.x) > 25f || transform.position.z > 35f || transform.position.z < -10f)
+        // Press Spacebar to instantly kick forward
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            ResetBall();
+            ApplyKick(Vector3.forward);
         }
     }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        // Entering the goal net
-        if (other.gameObject.name == "GoalArea")
-        {
-            Debug.Log("GOAL! YOU WIN THE MATCH!");
-            ResetBall();
-        }
-    }
-
+    // Universal collision: kicks the second anything pushes into the ball
     private void OnCollisionEnter(Collision collision)
     {
-        // Touching the goalkeeper resets the ball back to start
-        if (collision.gameObject.name == "Goalkeeper")
-        {
-            Debug.Log("SAVED BY THE KEEPER!");
-            ResetBall();
-        }
+        if (rb == null) return;
+
+        // Get the push direction away from whatever hit it
+        Vector3 pushDir = collision.contacts.Length > 0 ? -collision.contacts[0].normal : Vector3.forward;
+        pushDir.y = 0.1f; // keep it low so it rolls on the grass
+
+        rb.linearVelocity = Vector3.zero;
+        rb.AddForce(pushDir.normalized * kickForce, ForceMode.Impulse);
     }
 
-    public void ResetBall()
+    void ApplyKick(Vector3 dir)
     {
+        if (rb == null) return;
+        dir.y = 0.1f;
         rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-        transform.position = initialPosition;
+        rb.AddForce(dir.normalized * kickForce, ForceMode.Impulse);
     }
 }

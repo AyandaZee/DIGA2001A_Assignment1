@@ -1,47 +1,91 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class EnergySystem : MonoBehaviour
 {
-    [Header("Energy Settings")]
+    [Header("Timer Settings")]
     public float maxEnergy = 100f;
-    public float currentEnergy;
-    public float baseDrainRate = 1f;
-    public float sprintDrainRate = 4f;
+    public float currentEnergy = 100f;
 
-    private PlayerController playerController;
-    public bool isFainted = false;
+    [Tooltip("Time in seconds for a full bar to drain. 120 = 2 full minutes.")]
+    public float totalGameTimeInSeconds = 120f;
+
+    [Header("UI References")]
+    public Slider energySlider;
+    public MainMenuManager mainMenuManager;
+
+    [Header("State Control")]
+    public bool isGameActive = false;
+    private bool isGameOver = false;
 
     private void Start()
     {
+        ResetEnergy();
+        isGameActive = false;
+
+        if (mainMenuManager == null)
+        {
+            mainMenuManager = Object.FindFirstObjectByType<MainMenuManager>();
+        }
+    }
+
+    public void ResetEnergy()
+    {
+        isGameOver = false;
         currentEnergy = maxEnergy;
-        playerController = GetComponent<PlayerController>();
+
+        if (energySlider == null)
+        {
+            // Auto-locate slider on scene if not explicitly assigned
+            energySlider = Object.FindFirstObjectByType<Slider>();
+        }
+
+        if (energySlider != null)
+        {
+            energySlider.minValue = 0f;
+            energySlider.maxValue = maxEnergy;
+            energySlider.value = maxEnergy;
+        }
+
+        Debug.Log("ENERGY RESET TO 100%");
+    }
+
+    public void StartEnergyTimer()
+    {
+        ResetEnergy();
+        isGameActive = true;
     }
 
     private void Update()
     {
-        if (isFainted) return;
+        if (!isGameActive || isGameOver) return;
 
-        // Drain energy faster if sprinting, otherwise normal rate
-        bool isSprinting = UnityEngine.InputSystem.Keyboard.current != null &&
-                           UnityEngine.InputSystem.Keyboard.current.leftShiftKey.isPressed;
-
-        float currentDrain = isSprinting ? sprintDrainRate : baseDrainRate;
-        currentEnergy -= currentDrain * Time.deltaTime;
-
-        // Clamp energy between 0 and max
-        currentEnergy = Mathf.Clamp(currentEnergy, 0f, maxEnergy);
-
-        // Check for Faint (Game Over)
-        if (currentEnergy <= 0f)
+        if (currentEnergy > 0f)
         {
-            Faint();
-        }
-    }
+            // Calculate drain speed based on total desired game duration
+            float drainRate = maxEnergy / totalGameTimeInSeconds;
+            currentEnergy -= drainRate * Time.deltaTime;
 
-    private void Faint()
-    {
-        isFainted = true;
-        Debug.Log("GAME OVER: Energy reached 0! Player fainted.");
-        // We will trigger the Game Over UI screen here later!
+            // Direct visual update to the UI slider every frame
+            if (energySlider != null)
+            {
+                energySlider.value = currentEnergy;
+            }
+        }
+        else if (currentEnergy <= 0f && !isGameOver)
+        {
+            currentEnergy = 0f;
+            if (energySlider != null) energySlider.value = 0f;
+
+            isGameOver = true;
+            isGameActive = false;
+
+            Debug.Log("<color=red>TIMER EXPIRED! GAME OVER.</color>");
+
+            if (mainMenuManager != null)
+            {
+                mainMenuManager.TriggerGameOver();
+            }
+        }
     }
 }

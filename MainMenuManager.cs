@@ -8,6 +8,7 @@ public class MainMenuManager : MonoBehaviour
     public GameObject coverPanel;
     public GameObject menuPanel;
     public GameObject optionsPanel;
+    public GameObject gameOverPanel;
 
     [Header("Splash Screens")]
     public GameObject level1Splash;
@@ -15,110 +16,88 @@ public class MainMenuManager : MonoBehaviour
 
     void Start()
     {
-        // Keep cursor unlocked and visible for UI menus
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        // Unfreeze time when a scene starts
         Time.timeScale = 1f;
 
-        string currentScene = SceneManager.GetActiveScene().name;
-
-        if (currentScene == "MainMenu")
-        {
-            ShowCover();
-        }
-        else if (currentScene == "Level 1")
+        if (menuPanel != null)
         {
             ShowMainMenu();
         }
-        else if (currentScene == "Level 2")
-        {
-            if (level2Splash) StartCoroutine(Level2SplashRoutine());
-        }
-    }
-
-    public void ShowCover()
-    {
-        if (coverPanel) coverPanel.SetActive(true);
-        if (menuPanel) menuPanel.SetActive(false);
-        if (optionsPanel) optionsPanel.SetActive(false);
-        if (level1Splash) level1Splash.SetActive(false);
-        if (level2Splash) level2Splash.SetActive(false);
     }
 
     public void ShowMainMenu()
     {
-        // Ensure cursor is visible when menu is shown
+        Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
         if (coverPanel) coverPanel.SetActive(false);
         if (menuPanel) menuPanel.SetActive(true);
         if (optionsPanel) optionsPanel.SetActive(false);
+        if (gameOverPanel) gameOverPanel.SetActive(false);
         if (level1Splash) level1Splash.SetActive(false);
         if (level2Splash) level2Splash.SetActive(false);
     }
 
-    public void ShowOptions()
-    {
-        if (coverPanel) coverPanel.SetActive(false);
-        if (menuPanel) menuPanel.SetActive(false);
-        if (optionsPanel) optionsPanel.SetActive(true);
-        if (level1Splash) level1Splash.SetActive(false);
-        if (level2Splash) level2Splash.SetActive(false);
-    }
-
-    // Called from MainMenu cover art click
-    public void LoadLevel1Scene()
-    {
-        SceneManager.LoadScene("Level 1");
-    }
-
-    // Called when clicking PLAY on Level 1 menu
     public void PlayGame()
     {
-        // Hide all menus so gameplay is fully active and clickable
+        // Hide panels
         if (coverPanel) coverPanel.SetActive(false);
         if (menuPanel) menuPanel.SetActive(false);
         if (optionsPanel) optionsPanel.SetActive(false);
+        if (gameOverPanel) gameOverPanel.SetActive(false);
         if (level1Splash) level1Splash.SetActive(false);
         if (level2Splash) level2Splash.SetActive(false);
+
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // Trigger 4-second rules sequence first
+        RulesManager rulesManager = Object.FindFirstObjectByType<RulesManager>();
+        if (rulesManager != null)
+        {
+            rulesManager.ShowRulesAndStartGame();
+        }
+        else
+        {
+            // Fallback: Start energy timer directly if no RulesManager is found
+            EnergySystem energySys = Object.FindFirstObjectByType<EnergySystem>();
+            if (energySys != null)
+            {
+                energySys.StartEnergyTimer();
+            }
+        }
     }
 
-    // Called for Level 1 transition (with splash)
-    public void LaunchLevel1()
+    public void TriggerGameOver()
     {
-        StartCoroutine(SplashRoutine("Level 1", level1Splash));
+        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        StartCoroutine(GameOverSequence());
     }
 
-    // Called for Level 2 transition (with splash)
-    public void LaunchLevel2()
+    private IEnumerator GameOverSequence()
     {
-        StartCoroutine(SplashRoutine("Level 2", level2Splash));
+        // Display GAME OVER screen for 2.5 seconds, then safely return to menu
+        yield return new WaitForSecondsRealtime(2.5f);
+
+        if (gameOverPanel) gameOverPanel.SetActive(false);
+        ShowMainMenu();
     }
 
-    private IEnumerator SplashRoutine(string sceneName, GameObject splashPanel)
+    public void RestartToMenu()
     {
-        if (menuPanel) menuPanel.SetActive(false);
-        if (optionsPanel) optionsPanel.SetActive(false);
-        if (splashPanel) splashPanel.SetActive(true);
-
-        yield return new WaitForSeconds(3.5f);
-
-        SceneManager.LoadScene(sceneName);
-    }
-
-    private IEnumerator Level2SplashRoutine()
-    {
-        if (level2Splash) level2Splash.SetActive(true);
-        yield return new WaitForSeconds(3.5f);
-        if (level2Splash) level2Splash.SetActive(false);
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void QuitGame()
     {
-        Debug.Log("Quitting...");
+        Debug.Log("QUIT BUTTON PRESSED");
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
         Application.Quit();
+#endif
     }
 }
